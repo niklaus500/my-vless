@@ -1,4 +1,4 @@
-name: Ultra Fast Gaming VLESS
+name: Pro Gaming AI Selector
 
 on:
   workflow_dispatch:
@@ -26,7 +26,7 @@ jobs:
           curl -L https://raw.githubusercontent.com/barry-far/V2ray-Config/refs/heads/main/Splitted-By-Protocol/vless.txt -o barry.txt
           cat epodonios.txt barry.txt > vless.txt
 
-      - name: Run Ultra Fast Filter
+      - name: Run AI selector
         run: |
           python3 filter.py
 
@@ -34,6 +34,6 @@ jobs:
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add output/vless.txt
-          git commit -m "ultra fast update" || exit 0
+          git add output/vless.txt ai_cache.json
+          git commit -m "pro ai update" || exit 0
           git push
