@@ -1,39 +1,40 @@
-name: Update VLESS
+name: Update VLESS Smart Filter
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *"  # هر 1 ساعت
+    - cron: "0 * * * *"   # هر 1 ساعت
 
 permissions:
   contents: write
 
 jobs:
-  update:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - name: Download sources
+      - name: Install tools
+        run: |
+          sudo apt update
+          sudo apt install -y curl python3
+
+      - name: Download configs
         run: |
           curl -L https://raw.githubusercontent.com/Epodonios/v2ray-configs/refs/heads/main/Splitted-By-Protocol/vless.txt -o epodonios.txt
           curl -L https://raw.githubusercontent.com/barry-far/V2ray-Config/refs/heads/main/Splitted-By-Protocol/vless.txt -o barry.txt
           cat epodonios.txt barry.txt > vless.txt
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
-      - name: Filter configs
+      - name: Filter & Rank configs
         run: |
           python3 filter.py
 
-      - name: Commit
+      - name: Commit results
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add output/vless.txt
-          git commit -m "update vless" || exit 0
+          git commit -m "update vless configs" || exit 0
           git push
