@@ -8,12 +8,13 @@ OUTPUT = "output/vless.txt"
 
 MAX = 80
 
-GOOD_REGIONS = ["germany", "netherlands", "france", "finland", "turkey"]
+GOOD = ["germany", "netherlands", "france", "finland", "turkey"]
+BAD = ["usa", "us", "china", "cn", "india", "ru", "russia", "brazil"]
 
-def is_valid(v):
+def valid(v):
     return v.startswith("vless://") and "@" in v and len(v) > 60
 
-def get_name(v):
+def name(v):
     try:
         if "#" in v:
             return unquote(v.split("#",1)[1]).lower()
@@ -21,35 +22,26 @@ def get_name(v):
         pass
     return ""
 
-# شبیه‌سازی تست latency (واقعی در حد TCP handshake)
-def test_latency(config):
+def latency(v):
+    # تست سبک (proxy check سریع)
+    start = time.time()
     try:
-        start = time.time()
-
-        # تست ساده اتصال (proxy handshake simulation)
-        # اگر سرور dead باشد سریع fail می‌شود
-        result = subprocess.run(
-            ["bash", "-c", f"curl -s --max-time 3 '{config[:50]}'"],
+        subprocess.run(
+            ["bash", "-c", f"curl -s --max-time 2 '{v[:50]}'"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-
-        end = time.time()
-
-        if result.returncode != 0:
-            return 9999
-
-        return (end - start) * 1000
-
     except:
         return 9999
+    return (time.time() - start) * 1000
 
 
 with open(INPUT, "r", encoding="utf-8") as f:
     lines = [x.strip() for x in f if x.strip()]
 
-lines = [l for l in lines if is_valid(l)]
+lines = [l for l in lines if valid(l)]
 
+# حذف تکراری
 seen = set()
 unique = []
 for l in lines:
@@ -57,22 +49,21 @@ for l in lines:
         seen.add(l)
         unique.append(l)
 
-# امتیاز + latency ترکیبی
 ranked = []
 
 for v in unique:
-    name = get_name(v)
-
+    n = name(v)
     score = 0
 
-    if any(r in name for r in GOOD_REGIONS):
+    if any(g in n for g in GOOD):
         score += 2
 
-    latency = test_latency(v)
+    if any(b in n for b in BAD):
+        score -= 3
 
-    final_score = score - (latency / 1000)
+    score -= latency(v) / 1000
 
-    ranked.append((final_score, v))
+    ranked.append((score, v))
 
 ranked.sort(reverse=True, key=lambda x: x[0])
 
