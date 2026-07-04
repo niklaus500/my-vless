@@ -2,6 +2,7 @@ from urllib.parse import unquote
 import os
 import json
 import socket
+import random
 import time
 
 INPUT = "vless.txt"
@@ -13,16 +14,16 @@ MAX = 80
 GOOD = ["germany", "netherlands", "france", "finland", "turkey"]
 BAD = ["usa", "us", "china", "india", "russia", "brazil"]
 
-# -------------------
-# حافظه AI
-# -------------------
+# ------------------
+# memory AI
+# ------------------
 if os.path.exists(CACHE):
     with open(CACHE, "r") as f:
         memory = json.load(f)
 else:
     memory = {}
 
-def save_memory():
+def save():
     with open(CACHE, "w") as f:
         json.dump(memory, f)
 
@@ -37,7 +38,7 @@ def name(v):
         pass
     return ""
 
-# تست سبک latency (برای گیم)
+# ⚡ تست واقعی سبک
 def latency_test():
     start = time.time()
     try:
@@ -63,31 +64,36 @@ for l in lines:
         seen.add(l)
         unique.append(l)
 
-base_latency = latency_test()
+# 🔥 10% تست واقعی
+sample_size = max(5, len(unique) // 10)
+test_pool = random.sample(unique, sample_size)
+
+real_scores = {}
+
+for v in test_pool:
+    real_scores[v] = -latency_test() / 1000
 
 ranked = []
 
 for v in unique:
     n = name(v)
 
-    # امتیاز قبلی (یادگیری)
+    # 🧠 AI score
     score = memory.get(v, 0)
 
-    # region bonus
     if any(g in n for g in GOOD):
         score += 3
 
     if any(b in n for b in BAD):
         score -= 3
 
-    # latency penalty
-    score -= base_latency / 1000
-
-    # یادگیری
-    if score > 2:
-        memory[v] = min(memory.get(v, 0) + 1, 10)
+    # ⚡ اگر داخل 10% تست بود → دقت بالا
+    if v in real_scores:
+        score += real_scores[v]
+        memory[v] = memory.get(v, 0) + 2
     else:
-        memory[v] = max(memory.get(v, 0) - 1, -10)
+        # AI prediction (سبک)
+        score -= 0.2
 
     ranked.append((score, v))
 
@@ -100,4 +106,4 @@ os.makedirs("output", exist_ok=True)
 with open(OUTPUT, "w", encoding="utf-8") as f:
     f.write("\n".join(result))
 
-save_memory()
+save()
