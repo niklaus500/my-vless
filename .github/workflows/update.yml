@@ -1,1 +1,34 @@
+name: Update VLESS
 
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download
+        run: |
+          curl -L "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Protocol/vless.txt" -o vless.txt
+
+      - name: Remove duplicates
+        run: |
+          sort vless.txt | uniq > clean.txt
+
+      - name: Save
+        run: |
+          mkdir -p output
+          cp clean.txt output/vless.txt
+
+      - name: Commit
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add output/vless.txt
+          git commit -m "update" || exit 0
+          git push
