@@ -3,7 +3,7 @@ name: Update VLESS
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "0 * * * *"  # هر 1 ساعت
 
 permissions:
   contents: write
@@ -15,27 +15,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download
+      - name: Download sources
         run: |
-          > vless.txt
-          for i in $(seq 1 14); do
-            curl -L "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Sub${i}.txt" >> vless.txt
-            echo "" >> vless.txt
-          done
+          curl -L https://raw.githubusercontent.com/Epodonios/v2ray-configs/refs/heads/main/Splitted-By-Protocol/vless.txt -o epodonios.txt
+          curl -L https://raw.githubusercontent.com/barry-far/V2ray-Config/refs/heads/main/Splitted-By-Protocol/vless.txt -o barry.txt
+          cat epodonios.txt barry.txt > vless.txt
 
-      - name: Keep only VLESS
-        run: |
-          grep '^vless://' vless.txt | sort -u > clean.txt
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
 
-      - name: Save
+      - name: Filter configs
         run: |
-          mkdir -p output
-          cp clean.txt output/vless.txt
+          python3 filter.py
 
       - name: Commit
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add output/vless.txt
-          git commit -m "update" || exit 0
+          git commit -m "update vless" || exit 0
           git push
