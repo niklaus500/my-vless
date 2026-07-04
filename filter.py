@@ -2,7 +2,6 @@ from urllib.parse import unquote
 import os
 import json
 import socket
-import random
 import time
 
 INPUT = "vless.txt"
@@ -15,7 +14,7 @@ GOOD = ["germany", "netherlands", "france", "finland", "turkey"]
 BAD = ["usa", "us", "china", "india", "russia", "brazil"]
 
 # -------------------
-# AI MEMORY SYSTEM
+# MEMORY
 # -------------------
 if os.path.exists(CACHE):
     with open(CACHE, "r") as f:
@@ -38,13 +37,15 @@ def name(v):
         pass
     return ""
 
-# ⚡ real lightweight test
+# -------------------
+# REAL (light) latency check
+# -------------------
 def latency_test():
     start = time.time()
     try:
         s = socket.socket()
         s.settimeout(1)
-        s.connect(("8.8.8.8", 53))
+        s.connect(("1.1.1.1", 53))
         s.close()
     except:
         return 9999
@@ -54,6 +55,7 @@ def latency_test():
 with open(INPUT, "r", encoding="utf-8") as f:
     lines = [x.strip() for x in f if x.strip()]
 
+# keep valid only
 lines = [l for l in lines if valid(l)]
 
 # remove duplicates
@@ -65,10 +67,9 @@ for l in lines:
         unique.append(l)
 
 # -------------------
-# 10% REAL TEST POOL
+# FIXED TEST POOL (NO RANDOM)
 # -------------------
-sample_size = max(5, len(unique) // 10)
-test_pool = random.sample(unique, sample_size)
+test_pool = unique[:min(30, len(unique))]
 
 real_score = {}
 
@@ -80,32 +81,32 @@ ranked = []
 for v in unique:
     n = name(v)
 
-    # base AI score
     score = memory.get(v, 0)
 
+    # region logic (soft)
     if any(g in n for g in GOOD):
-        score += 3
+        score += 2
 
     if any(b in n for b in BAD):
-        score -= 3
+        score -= 2
 
-    # real tested servers
+    # real test boost
     if v in real_score:
         score += real_score[v]
-        memory[v] = min(memory.get(v, 0) + 2, 15)
+        memory[v] = min(memory.get(v, 0) + 2, 20)
     else:
-        # predicted stable bonus
-        score += 0.3
+        score += 0.2
 
-    # stability penalty (anti-fluctuation)
-    if memory.get(v, 0) < -3:
+    # stability penalty
+    if memory.get(v, 0) < -5:
         score -= 2
 
     ranked.append((score, v))
 
-ranked.sort(reverse=True, key=lambda x: x[0])
+# sort best first
+ranked.sort(key=lambda x: x[0], reverse=True)
 
-result = [x[1] for x in ranked[:MAX]]
+result = [v for _, v in ranked[:MAX]]
 
 os.makedirs("output", exist_ok=True)
 
