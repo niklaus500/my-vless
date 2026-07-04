@@ -14,9 +14,9 @@ MAX = 80
 GOOD = ["germany", "netherlands", "france", "finland", "turkey"]
 BAD = ["usa", "us", "china", "india", "russia", "brazil"]
 
-# ------------------
-# memory AI
-# ------------------
+# -------------------
+# AI MEMORY SYSTEM
+# -------------------
 if os.path.exists(CACHE):
     with open(CACHE, "r") as f:
         memory = json.load(f)
@@ -38,7 +38,7 @@ def name(v):
         pass
     return ""
 
-# ⚡ تست واقعی سبک
+# ⚡ real lightweight test
 def latency_test():
     start = time.time()
     try:
@@ -56,7 +56,7 @@ with open(INPUT, "r", encoding="utf-8") as f:
 
 lines = [l for l in lines if valid(l)]
 
-# حذف تکراری
+# remove duplicates
 seen = set()
 unique = []
 for l in lines:
@@ -64,21 +64,23 @@ for l in lines:
         seen.add(l)
         unique.append(l)
 
-# 🔥 10% تست واقعی
+# -------------------
+# 10% REAL TEST POOL
+# -------------------
 sample_size = max(5, len(unique) // 10)
 test_pool = random.sample(unique, sample_size)
 
-real_scores = {}
+real_score = {}
 
 for v in test_pool:
-    real_scores[v] = -latency_test() / 1000
+    real_score[v] = -latency_test() / 1000
 
 ranked = []
 
 for v in unique:
     n = name(v)
 
-    # 🧠 AI score
+    # base AI score
     score = memory.get(v, 0)
 
     if any(g in n for g in GOOD):
@@ -87,13 +89,17 @@ for v in unique:
     if any(b in n for b in BAD):
         score -= 3
 
-    # ⚡ اگر داخل 10% تست بود → دقت بالا
-    if v in real_scores:
-        score += real_scores[v]
-        memory[v] = memory.get(v, 0) + 2
+    # real tested servers
+    if v in real_score:
+        score += real_score[v]
+        memory[v] = min(memory.get(v, 0) + 2, 15)
     else:
-        # AI prediction (سبک)
-        score -= 0.2
+        # predicted stable bonus
+        score += 0.3
+
+    # stability penalty (anti-fluctuation)
+    if memory.get(v, 0) < -3:
+        score -= 2
 
     ranked.append((score, v))
 
