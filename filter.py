@@ -1,15 +1,30 @@
 from urllib.parse import unquote
 import os
+import json
 import socket
 import time
 
 INPUT = "vless.txt"
 OUTPUT = "output/vless.txt"
+CACHE = "ai_cache.json"
 
 MAX = 80
 
 GOOD = ["germany", "netherlands", "france", "finland", "turkey"]
 BAD = ["usa", "us", "china", "india", "russia", "brazil"]
+
+# -------------------
+# حافظه AI
+# -------------------
+if os.path.exists(CACHE):
+    with open(CACHE, "r") as f:
+        memory = json.load(f)
+else:
+    memory = {}
+
+def save_memory():
+    with open(CACHE, "w") as f:
+        json.dump(memory, f)
 
 def valid(v):
     return v.startswith("vless://") and "@" in v and len(v) > 60
@@ -22,13 +37,13 @@ def name(v):
         pass
     return ""
 
-# 🔥 تست واقعی TCP handshake (سبک ولی واقعی‌تر از curl)
+# تست سبک latency (برای گیم)
 def latency_test():
     start = time.time()
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s = socket.socket()
         s.settimeout(1)
-        s.connect(("8.8.8.8", 53))  # تست مسیر اینترنت واقعی
+        s.connect(("8.8.8.8", 53))
         s.close()
     except:
         return 9999
@@ -48,27 +63,33 @@ for l in lines:
         seen.add(l)
         unique.append(l)
 
-ranked = []
-
 base_latency = latency_test()
+
+ranked = []
 
 for v in unique:
     n = name(v)
 
-    score = 0
+    # امتیاز قبلی (یادگیری)
+    score = memory.get(v, 0)
 
-    # 🌍 منطقه خوب
+    # region bonus
     if any(g in n for g in GOOD):
         score += 3
 
-    # ❌ منطقه بد
     if any(b in n for b in BAD):
         score -= 3
 
-    # ⚡ ترکیب با latency پایه
-    final_score = score - (base_latency / 1000)
+    # latency penalty
+    score -= base_latency / 1000
 
-    ranked.append((final_score, v))
+    # یادگیری
+    if score > 2:
+        memory[v] = min(memory.get(v, 0) + 1, 10)
+    else:
+        memory[v] = max(memory.get(v, 0) - 1, -10)
+
+    ranked.append((score, v))
 
 ranked.sort(reverse=True, key=lambda x: x[0])
 
@@ -78,3 +99,5 @@ os.makedirs("output", exist_ok=True)
 
 with open(OUTPUT, "w", encoding="utf-8") as f:
     f.write("\n".join(result))
+
+save_memory()
