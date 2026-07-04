@@ -1,115 +1,39 @@
-from urllib.parse import unquote
-import os
-import json
-import socket
-import random
-import time
+name: Pro Gamer Mode VLESS
 
-INPUT = "vless.txt"
-OUTPUT = "output/vless.txt"
-CACHE = "ai_cache.json"
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"
 
-MAX = 80
+permissions:
+  contents: write
 
-GOOD = ["germany", "netherlands", "france", "finland", "turkey"]
-BAD = ["usa", "us", "china", "india", "russia", "brazil"]
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-# -------------------
-# AI MEMORY SYSTEM
-# -------------------
-if os.path.exists(CACHE):
-    with open(CACHE, "r") as f:
-        memory = json.load(f)
-else:
-    memory = {}
+    steps:
+      - uses: actions/checkout@v4
 
-def save():
-    with open(CACHE, "w") as f:
-        json.dump(memory, f)
+      - name: Install deps
+        run: |
+          sudo apt update
+          sudo apt install -y curl python3
 
-def valid(v):
-    return v.startswith("vless://") and "@" in v and len(v) > 60
+      - name: Download configs
+        run: |
+          curl -L https://raw.githubusercontent.com/Epodonios/v2ray-configs/refs/heads/main/Splitted-By-Protocol/vless.txt -o epodonios.txt
+          curl -L https://raw.githubusercontent.com/barry-far/V2ray-Config/refs/heads/main/Splitted-By-Protocol/vless.txt -o barry.txt
+          cat epodonios.txt barry.txt > vless.txt
 
-def name(v):
-    try:
-        if "#" in v:
-            return unquote(v.split("#",1)[1]).lower()
-    except:
-        pass
-    return ""
+      - name: Run Pro Gamer AI
+        run: |
+          python3 filter.py
 
-# ⚡ real lightweight test
-def latency_test():
-    start = time.time()
-    try:
-        s = socket.socket()
-        s.settimeout(1)
-        s.connect(("8.8.8.8", 53))
-        s.close()
-    except:
-        return 9999
-    return (time.time() - start) * 1000
-
-
-with open(INPUT, "r", encoding="utf-8") as f:
-    lines = [x.strip() for x in f if x.strip()]
-
-lines = [l for l in lines if valid(l)]
-
-# remove duplicates
-seen = set()
-unique = []
-for l in lines:
-    if l not in seen:
-        seen.add(l)
-        unique.append(l)
-
-# -------------------
-# 10% REAL TEST POOL
-# -------------------
-sample_size = max(5, len(unique) // 10)
-test_pool = random.sample(unique, sample_size)
-
-real_score = {}
-
-for v in test_pool:
-    real_score[v] = -latency_test() / 1000
-
-ranked = []
-
-for v in unique:
-    n = name(v)
-
-    # base AI score
-    score = memory.get(v, 0)
-
-    if any(g in n for g in GOOD):
-        score += 3
-
-    if any(b in n for b in BAD):
-        score -= 3
-
-    # real tested servers
-    if v in real_score:
-        score += real_score[v]
-        memory[v] = min(memory.get(v, 0) + 2, 15)
-    else:
-        # predicted stable bonus
-        score += 0.3
-
-    # stability penalty (anti-fluctuation)
-    if memory.get(v, 0) < -3:
-        score -= 2
-
-    ranked.append((score, v))
-
-ranked.sort(reverse=True, key=lambda x: x[0])
-
-result = [x[1] for x in ranked[:MAX]]
-
-os.makedirs("output", exist_ok=True)
-
-with open(OUTPUT, "w", encoding="utf-8") as f:
-    f.write("\n".join(result))
-
-save()
+      - name: Commit
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add output/vless.txt ai_cache.json
+          git commit -m "pro gamer update" || exit 0
+          git push
