@@ -1,6 +1,6 @@
 from urllib.parse import unquote
 import os
-import subprocess
+import socket
 import time
 
 INPUT = "vless.txt"
@@ -9,7 +9,7 @@ OUTPUT = "output/vless.txt"
 MAX = 80
 
 GOOD = ["germany", "netherlands", "france", "finland", "turkey"]
-BAD = ["usa", "us", "china", "cn", "india", "ru", "russia", "brazil"]
+BAD = ["usa", "us", "china", "india", "russia", "brazil"]
 
 def valid(v):
     return v.startswith("vless://") and "@" in v and len(v) > 60
@@ -22,15 +22,14 @@ def name(v):
         pass
     return ""
 
-def latency(v):
-    # تست سبک (proxy check سریع)
+# 🔥 تست واقعی TCP handshake (سبک ولی واقعی‌تر از curl)
+def latency_test():
     start = time.time()
     try:
-        subprocess.run(
-            ["bash", "-c", f"curl -s --max-time 2 '{v[:50]}'"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1)
+        s.connect(("8.8.8.8", 53))  # تست مسیر اینترنت واقعی
+        s.close()
     except:
         return 9999
     return (time.time() - start) * 1000
@@ -51,19 +50,25 @@ for l in lines:
 
 ranked = []
 
+base_latency = latency_test()
+
 for v in unique:
     n = name(v)
+
     score = 0
 
+    # 🌍 منطقه خوب
     if any(g in n for g in GOOD):
-        score += 2
+        score += 3
 
+    # ❌ منطقه بد
     if any(b in n for b in BAD):
         score -= 3
 
-    score -= latency(v) / 1000
+    # ⚡ ترکیب با latency پایه
+    final_score = score - (base_latency / 1000)
 
-    ranked.append((score, v))
+    ranked.append((final_score, v))
 
 ranked.sort(reverse=True, key=lambda x: x[0])
 
