@@ -1,4 +1,4 @@
-name: Pro Gaming AI Selector
+name: Hybrid Gaming AI Selector
 
 on:
   workflow_dispatch:
@@ -26,7 +26,7 @@ jobs:
           curl -L https://raw.githubusercontent.com/barry-far/V2ray-Config/refs/heads/main/Splitted-By-Protocol/vless.txt -o barry.txt
           cat epodonios.txt barry.txt > vless.txt
 
-      - name: Run AI selector
+      - name: Run Hybrid AI filter
         run: |
           python3 filter.py
 
@@ -35,5 +35,5 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add output/vless.txt ai_cache.json
-          git commit -m "pro ai update" || exit 0
+          git commit -m "hybrid ai update" || exit 0
           git push
