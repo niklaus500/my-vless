@@ -1,24 +1,14 @@
 from urllib.parse import unquote
 import os
-import re
+import subprocess
+import time
 
 INPUT = "vless.txt"
 OUTPUT = "output/vless.txt"
 
 MAX = 80
 
-# کشورهای خوب برای گیم
-GOOD_REGIONS = [
-    "germany", "de",
-    "netherlands", "nl",
-    "france", "fr",
-    "finland", "fi",
-    "turkey", "tr",
-]
-
-BAD_REGIONS = [
-    "usa", "us", "china", "cn", "india", "in", "russia", "ru", "brazil", "br"
-]
+GOOD_REGIONS = ["germany", "netherlands", "france", "finland", "turkey"]
 
 def is_valid(v):
     return v.startswith("vless://") and "@" in v and len(v) > 60
@@ -26,43 +16,40 @@ def is_valid(v):
 def get_name(v):
     try:
         if "#" in v:
-            return unquote(v.split("#", 1)[1]).lower()
+            return unquote(v.split("#",1)[1]).lower()
     except:
         pass
     return ""
 
-def score(v):
-    s = 0
-    name = get_name(v)
+# شبیه‌سازی تست latency (واقعی در حد TCP handshake)
+def test_latency(config):
+    try:
+        start = time.time()
 
-    # Reality / WS bonuses
-    if "reality" in v.lower():
-        s += 3
-    if "ws" in v.lower() or "websocket" in v.lower():
-        s += 2
+        # تست ساده اتصال (proxy handshake simulation)
+        # اگر سرور dead باشد سریع fail می‌شود
+        result = subprocess.run(
+            ["bash", "-c", f"curl -s --max-time 3 '{config[:50]}'"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
 
-    # Good regions
-    if any(r in name for r in GOOD_REGIONS):
-        s += 2
+        end = time.time()
 
-    # Bad regions penalty
-    if any(r in name for r in BAD_REGIONS):
-        s -= 3
+        if result.returncode != 0:
+            return 9999
 
-    # fallback quality hints
-    if "security=tls" in v.lower():
-        s += 1
+        return (end - start) * 1000
 
-    return s
+    except:
+        return 9999
 
 
 with open(INPUT, "r", encoding="utf-8") as f:
     lines = [x.strip() for x in f if x.strip()]
 
-# فقط معتبرها
 lines = [l for l in lines if is_valid(l)]
 
-# حذف تکراری‌ها
 seen = set()
 unique = []
 for l in lines:
@@ -70,12 +57,26 @@ for l in lines:
         seen.add(l)
         unique.append(l)
 
-# امتیازدهی
-scored = [(score(l), l) for l in unique]
-scored.sort(reverse=True, key=lambda x: x[0])
+# امتیاز + latency ترکیبی
+ranked = []
 
-# انتخاب بهترین‌ها
-result = [x[1] for x in scored[:MAX]]
+for v in unique:
+    name = get_name(v)
+
+    score = 0
+
+    if any(r in name for r in GOOD_REGIONS):
+        score += 2
+
+    latency = test_latency(v)
+
+    final_score = score - (latency / 1000)
+
+    ranked.append((final_score, v))
+
+ranked.sort(reverse=True, key=lambda x: x[0])
+
+result = [x[1] for x in ranked[:MAX]]
 
 os.makedirs("output", exist_ok=True)
 
