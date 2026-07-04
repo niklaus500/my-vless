@@ -1,44 +1,57 @@
 from urllib.parse import unquote
 import os
+import random
 
 INPUT = "vless.txt"
 OUTPUT = "output/vless.txt"
 
-MAX_CONFIGS = 80
+MAX = 80
 
-ALLOW = [
-    "Germany", "DE",
-    "Netherlands", "NL",
-    "Finland", "FI",
-    "France", "FR",
-    "Turkey", "TR",
-    "United Arab Emirates", "UAE", "AE"
-]
+def is_valid(v):
+    return v.startswith("vless://") and "@" in v and len(v) > 50
 
-seen = set()
-result = []
+def decode_name(v):
+    try:
+        if "#" in v:
+            return unquote(v.split("#",1)[1]).lower()
+    except:
+        pass
+    return ""
 
 with open(INPUT, "r", encoding="utf-8") as f:
-    for line in f:
-        line = line.strip()
+    lines = [x.strip() for x in f if x.strip()]
 
-        if not line.startswith("vless://"):
-            continue
+# فقط vless های سالم
+lines = [l for l in lines if is_valid(l)]
 
-        if line in seen:
-            continue
+# حذف تکراری
+seen = set()
+unique = []
+for l in lines:
+    if l not in seen:
+        seen.add(l)
+        unique.append(l)
 
-        seen.add(line)
+epodonios = []
+barry = []
 
-        try:
-            name = unquote(line.split("#", 1)[1]) if "#" in line else ""
-        except:
-            name = ""
+for l in unique:
+    if "epodonios" in l.lower():
+        epodonios.append(l)
+    else:
+        barry.append(l)
 
-        if any(country.lower() in name.lower() for country in ALLOW):
-            result.append(line)
+random.shuffle(epodonios)
+random.shuffle(barry)
 
-result = result[:MAX_CONFIGS]
+half = MAX // 2
+
+result = epodonios[:half] + barry[:half]
+
+# اگر کم بود جبران
+rest = [x for x in unique if x not in result]
+random.shuffle(rest)
+result += rest[:MAX - len(result)]
 
 os.makedirs("output", exist_ok=True)
 
