@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: "*/30 * * * *"
 
+permissions:
+  contents: write
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -14,11 +17,15 @@ jobs:
 
       - name: Download
         run: |
-          curl -L "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Protocol/vless.txt" -o vless.txt
+          > vless.txt
+          for i in $(seq 1 14); do
+            curl -L "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Sub${i}.txt" >> vless.txt
+            echo "" >> vless.txt
+          done
 
-      - name: Remove duplicates
+      - name: Keep only VLESS
         run: |
-          sort vless.txt | uniq > clean.txt
+          grep '^vless://' vless.txt | sort -u > clean.txt
 
       - name: Save
         run: |
