@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 * * * *"
+    - cron: "30 * * * *"
 
 permissions:
   contents: write
@@ -24,6 +25,7 @@ jobs:
         run: |
           curl -L https://raw.githubusercontent.com/Epodonios/v2ray-configs/refs/heads/main/Splitted-By-Protocol/vless.txt -o epodonios.txt
           curl -L https://raw.githubusercontent.com/barry-far/V2ray-Config/refs/heads/main/Splitted-By-Protocol/vless.txt -o barry.txt
+
           cat epodonios.txt barry.txt > vless.txt
 
       - name: Run Pro Gamer AI
